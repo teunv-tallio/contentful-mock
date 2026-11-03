@@ -1,19 +1,14 @@
 import type { EntrySys, AssetSys, ContentTypeSys, SysLink } from '../store/types.js'
 
-let counter = 0
-export function generateId(): string {
-  return `mock-${Date.now()}-${++counter}`
-}
-
-export function makeSpaceLink(spaceId: string): SysLink {
+export function makeSpaceLink(spaceId: string): SysLink<'Space'> {
   return { sys: { type: 'Link', linkType: 'Space', id: spaceId } }
 }
 
-export function makeEnvironmentLink(environmentId: string): SysLink {
+export function makeEnvironmentLink(environmentId: string): SysLink<'Environment'> {
   return { sys: { type: 'Link', linkType: 'Environment', id: environmentId } }
 }
 
-export function makeContentTypeLink(contentTypeId: string): SysLink {
+export function makeContentTypeLink(contentTypeId: string): SysLink<'ContentType'> {
   return { sys: { type: 'Link', linkType: 'ContentType', id: contentTypeId } }
 }
 

@@ -1,5 +1,11 @@
 export { MemoryStore } from './store/MemoryStore.js'
-export type { EntryProps, AssetProps, ContentTypeProps, SeedData } from './store/types.js'
+export type {
+  EntryProps,
+  AssetProps,
+  ContentTypeProps,
+  SeedData,
+  MemoryStoreOptions,
+} from './store/types.js'
 export { ContentfulError } from './utils/ContentfulError.js'
 export { createDeliveryClient } from './delivery/createDeliveryClient.js'
 export type {

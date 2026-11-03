@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto'
+import { v4 as uuidv4 } from 'uuid'
+import seedrandom from 'seedrandom'
 import type {
   EntryProps,
   AssetProps,
@@ -6,19 +9,72 @@ import type {
   StoredAsset,
   StoredContentType,
   SeedData,
+  MemoryStoreOptions,
 } from './types.js'
 import { ContentfulError } from '../utils/ContentfulError.js'
 
 type StoreKey = string // `${spaceId}/${environmentId}/${entityId}`
+type FileKey = string // `${spaceId}/${environmentId}/${assetId}/${locale}`
 
 function makeKey(spaceId: string, environmentId: string, entityId: string): StoreKey {
   return `${spaceId}/${environmentId}/${entityId}`
+}
+
+function makeFileKey(
+  spaceId: string,
+  environmentId: string,
+  assetId: string,
+  locale: string,
+): FileKey {
+  return `${spaceId}/${environmentId}/${assetId}/${locale}`
 }
 
 export class MemoryStore {
   private entries = new Map<StoreKey, StoredEntry>()
   private assets = new Map<StoreKey, StoredAsset>()
   private contentTypes = new Map<StoreKey, StoredContentType>()
+  private files = new Map<FileKey, Buffer | string>()
+  private generateIdFn: () => string
+  readonly assetBaseUrl: string
+
+  constructor(options?: MemoryStoreOptions) {
+    this.assetBaseUrl = options?.assetBaseUrl ?? '//images.ctfassets.net'
+    if (options?.seed !== undefined) {
+      const rng = seedrandom(String(options.seed))
+      this.generateIdFn = () =>
+        uuidv4({ random: Uint8Array.from({ length: 16 }, () => Math.floor(rng() * 256)) })
+    } else {
+      this.generateIdFn = () => uuidv4()
+    }
+  }
+
+  generateId(): string {
+    return this.generateIdFn()
+  }
+
+  getAssetUrl(spaceId: string, assetId: string, locale: string, fileName: string): string {
+    const token = createHash('md5').update(`${assetId}-${locale}`).digest('hex').substring(0, 32)
+    return `${this.assetBaseUrl}/${spaceId}/${assetId}/${token}/${fileName}`
+  }
+
+  storeFile(
+    spaceId: string,
+    environmentId: string,
+    assetId: string,
+    locale: string,
+    data: Buffer | string,
+  ): void {
+    this.files.set(makeFileKey(spaceId, environmentId, assetId, locale), data)
+  }
+
+  getFile(
+    spaceId: string,
+    environmentId: string,
+    assetId: string,
+    locale: string,
+  ): Buffer | string | undefined {
+    return this.files.get(makeFileKey(spaceId, environmentId, assetId, locale))
+  }
 
   // ─── Entries ──────────────────────────────────────────────────────────────
 
@@ -408,6 +464,7 @@ export class MemoryStore {
     this.entries.clear()
     this.assets.clear()
     this.contentTypes.clear()
+    this.files.clear()
   }
 
   seed(spaceId: string, environmentId: string, data: SeedData): void {

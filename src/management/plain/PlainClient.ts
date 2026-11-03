@@ -3,18 +3,13 @@ import type { MemoryStore } from '../../store/MemoryStore.js'
 import type {
   EntryProps,
   AssetProps,
+  AssetFileData,
   ContentTypeProps,
   StoredEntryFields,
 } from '../../store/types.js'
 import { ContentfulError } from '../../utils/ContentfulError.js'
 import { makeCollection, type Collection } from '../../utils/collection.js'
-import {
-  generateId,
-  makeEntrySys,
-  makeAssetSys,
-  makeContentTypeSys,
-  bumpVersion,
-} from '../../utils/sys.js'
+import { makeEntrySys, makeAssetSys, makeContentTypeSys, bumpVersion } from '../../utils/sys.js'
 import { QueryEngine } from '../../query/QueryEngine.js'
 
 export interface ManagementParams {
@@ -101,7 +96,7 @@ function makeEntryNamespace(store: MemoryStore) {
       params: ManagementParams & { contentTypeId: string },
       data: { fields: StoredEntryFields; metadata?: EntryProps['metadata'] },
     ): Promise<EntryProps> => {
-      const id = generateId()
+      const id = store.generateId()
       const props: EntryProps = {
         sys: makeEntrySys(id, params.spaceId, params.environmentId, params.contentTypeId),
         fields: data.fields,
@@ -287,7 +282,7 @@ function makeAssetNamespace(store: MemoryStore) {
       params: ManagementParams,
       data: { fields: AssetProps['fields']; metadata?: AssetProps['metadata'] },
     ): Promise<AssetProps> => {
-      const id = generateId()
+      const id = store.generateId()
       const props: AssetProps = {
         sys: makeAssetSys(id, params.spaceId, params.environmentId),
         fields: data.fields,
@@ -340,34 +335,75 @@ function makeAssetNamespace(store: MemoryStore) {
 
     createFromFiles: async (
       params: ManagementParams,
-      files: { fields: AssetProps['fields'] },
+      files: {
+        fields: {
+          title: AssetProps['fields']['title']
+          description?: AssetProps['fields']['description']
+          file: Record<string, AssetFileData & { file?: Buffer | string }>
+        }
+      },
     ): Promise<AssetProps> => {
-      const id = generateId()
-      // Set mock URLs for all locales
-      const fieldsWithUrls: AssetProps['fields'] = {
-        ...files.fields,
-        file: Object.fromEntries(
-          Object.entries(files.fields.file).map(([locale, f]) => [
-            locale,
-            { ...f, url: `//mock.contentful.com/assets/${id}/${f.fileName}` },
-          ]),
-        ),
+      const id = store.generateId()
+      const fileFieldWithUrls: AssetProps['fields']['file'] = {}
+      for (const [locale, f] of Object.entries(files.fields.file)) {
+        const { file: content, ...fileData } = f
+        if (content !== undefined) {
+          store.storeFile(params.spaceId, params.environmentId, id, locale, content)
+        }
+        fileFieldWithUrls[locale] = {
+          ...fileData,
+          url: store.getAssetUrl(params.spaceId, id, locale, f.fileName),
+        }
       }
       const props: AssetProps = {
         sys: makeAssetSys(id, params.spaceId, params.environmentId),
-        fields: fieldsWithUrls,
+        fields: { ...files.fields, file: fileFieldWithUrls },
       }
       return store.createAsset(params.spaceId, params.environmentId, props)
     },
 
     processForLocale: async (
-      _params: AssetParams,
+      params: AssetParams,
       asset: AssetProps,
-      _locale: string,
-    ): Promise<AssetProps> => asset,
+      locale: string,
+    ): Promise<AssetProps> => {
+      const fileData = asset.fields.file[locale]
+      if (fileData && !fileData.url) {
+        const updated = {
+          ...asset,
+          fields: {
+            ...asset.fields,
+            file: {
+              ...asset.fields.file,
+              [locale]: {
+                ...fileData,
+                url: store.getAssetUrl(params.spaceId, asset.sys.id, locale, fileData.fileName),
+              },
+            },
+          },
+        }
+        return store.updateAsset(params.spaceId, params.environmentId, updated)
+      }
+      return asset
+    },
 
-    processForAllLocales: async (_params: AssetParams, asset: AssetProps): Promise<AssetProps> =>
-      asset,
+    processForAllLocales: async (params: AssetParams, asset: AssetProps): Promise<AssetProps> => {
+      const updatedFile: AssetProps['fields']['file'] = {}
+      for (const [locale, fileData] of Object.entries(asset.fields.file)) {
+        updatedFile[locale] = fileData.url
+          ? fileData
+          : {
+              ...fileData,
+              url: store.getAssetUrl(params.spaceId, asset.sys.id, locale, fileData.fileName),
+            }
+      }
+      const hasChanges = Object.keys(updatedFile).some(
+        (l) => updatedFile[l].url !== asset.fields.file[l]?.url,
+      )
+      if (!hasChanges) return asset
+      const updated = { ...asset, fields: { ...asset.fields, file: updatedFile } }
+      return store.updateAsset(params.spaceId, params.environmentId, updated)
+    },
   }
 }
 
@@ -415,7 +451,7 @@ function makeContentTypeNamespace(store: MemoryStore) {
       params: ManagementParams,
       data: Omit<ContentTypeProps, 'sys'>,
     ): Promise<ContentTypeProps> => {
-      const id = generateId()
+      const id = store.generateId()
       const props: ContentTypeProps = {
         sys: makeContentTypeSys(id, params.spaceId, params.environmentId),
         name: data.name,

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createStore, SPACE, ENV, LOCALE } from '../helpers.js'
 import { createPlainClient } from '../../src/management/plain/createPlainClient.js'
-import type { MemoryStore } from '../../src/store/MemoryStore.js'
+import { MemoryStore } from '../../src/store/MemoryStore.js'
 import type { AssetProps } from '../../src/store/types.js'
 
 let store: MemoryStore
@@ -109,13 +109,39 @@ describe('archive / unarchive', () => {
 })
 
 describe('createFromFiles', () => {
-  it('creates asset with mock url', async () => {
+  it('creates asset with contentful-format url', async () => {
     const created = await client.asset.createFromFiles(params, {
       fields: assetFields('Upload'),
     })
     expect(created.sys.id).toBeDefined()
     const locale = LOCALE
-    expect(created.fields.file[locale].url).toContain('mock.contentful.com')
+    const url = created.fields.file[locale].url
+    expect(url).toContain('images.ctfassets.net')
+    expect(url).toContain(SPACE)
+    expect(url).toContain(created.sys.id)
+    expect(url).toContain('upload.jpg')
+  })
+
+  it('stores file binary content when provided', async () => {
+    const content = Buffer.from('fake image bytes')
+    const created = await client.asset.createFromFiles(params, {
+      fields: {
+        title: { [LOCALE]: 'Binary upload' },
+        file: { [LOCALE]: { fileName: 'img.png', contentType: 'image/png', file: content } },
+      },
+    })
+    const stored = store.getFile(SPACE, ENV, created.sys.id, LOCALE)
+    expect(stored).toEqual(content)
+  })
+
+  it('uses custom assetBaseUrl when configured', async () => {
+    const customStore = new MemoryStore({ assetBaseUrl: 'https://cdn.example.com' })
+    const customClient = createPlainClient({ store: customStore })
+    const created = await customClient.asset.createFromFiles(
+      { spaceId: SPACE, environmentId: ENV },
+      { fields: assetFields('Custom') },
+    )
+    expect(created.fields.file[LOCALE].url).toMatch(/^https:\/\/cdn\.example\.com\//)
   })
 })
 

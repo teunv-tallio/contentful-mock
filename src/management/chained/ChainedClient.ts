@@ -5,13 +5,7 @@ import type {
   ContentTypeProps,
   StoredEntryFields,
 } from '../../store/types.js'
-import {
-  generateId,
-  makeEntrySys,
-  makeAssetSys,
-  makeContentTypeSys,
-  bumpVersion,
-} from '../../utils/sys.js'
+import { makeEntrySys, makeAssetSys, makeContentTypeSys, bumpVersion } from '../../utils/sys.js'
 import { makeCollection } from '../../utils/collection.js'
 import { QueryEngine } from '../../query/QueryEngine.js'
 
@@ -168,7 +162,7 @@ function makeEnvironmentEntity(store: MemoryStore, spaceId: string, environmentI
 
     // Entries
     createEntry: async (contentTypeId: string, data: { fields: StoredEntryFields }) => {
-      const id = generateId()
+      const id = store.generateId()
       const props: EntryProps = {
         sys: makeEntrySys(id, spaceId, environmentId, contentTypeId),
         fields: data.fields,
@@ -204,7 +198,7 @@ function makeEnvironmentEntity(store: MemoryStore, spaceId: string, environmentI
 
     // Assets
     createAsset: async (data: { fields: AssetProps['fields'] }) => {
-      const id = generateId()
+      const id = store.generateId()
       const props: AssetProps = {
         sys: makeAssetSys(id, spaceId, environmentId),
         fields: data.fields,
@@ -236,7 +230,7 @@ function makeEnvironmentEntity(store: MemoryStore, spaceId: string, environmentI
 
     // Content Types
     createContentType: async (data: Omit<ContentTypeProps, 'sys'>) => {
-      const id = generateId()
+      const id = store.generateId()
       const props: ContentTypeProps = {
         sys: makeContentTypeSys(id, spaceId, environmentId),
         name: data.name,

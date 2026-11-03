@@ -43,9 +43,13 @@
   "dependencies": {
     "fast-json-patch": "^3.1.1",
     "fuse.js": "^7.0.0",
-    "geolib": "^3.3.4"
+    "geolib": "^3.3.4",
+    "seedrandom": "^3.0.5",
+    "uuid": "^14.0.3"
   },
   "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/seedrandom": "^3.0.8",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "contentful": "^11.12.10",

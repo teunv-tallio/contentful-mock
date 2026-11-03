@@ -149,6 +149,13 @@ export interface StoredContentType {
   publishedProps?: ContentTypeProps
 }
 
+export interface MemoryStoreOptions {
+  /** Seed for deterministic UUID generation. Useful in tests. */
+  seed?: number | string
+  /** Base URL for generated asset URLs. Defaults to `//images.ctfassets.net`. */
+  assetBaseUrl?: string
+}
+
 export interface SeedData {
   entries?: EntryProps[]
   assets?: AssetProps[]

@@ -4,7 +4,7 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 2020,
     sourceType: 'module',
-    project: './tsconfig.json',
+    project: './tsconfig.eslint.json',
     tsconfigRootDir: __dirname,
   },
   plugins: ['@typescript-eslint', 'prettier'],
@@ -20,4 +20,13 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
   },
   ignorePatterns: ['dist/', 'node_modules/', 'vitest.config.ts'],
+  overrides: [
+    {
+      files: ['tests/**/*.ts'],
+      parserOptions: {
+        project: './tsconfig.eslint.json',
+        tsconfigRootDir: __dirname,
+      },
+    },
+  ],
 }

@@ -12,11 +12,19 @@ import {
   type CdaAsset,
 } from './transformers.js'
 
+export const PREVIEW_HOST = 'preview.contentful.com'
+
 export interface MockDeliveryClientOptions {
   store: MemoryStore
   space?: string
   environment?: string
   locale?: string
+  /**
+   * API host. Set to `"preview.contentful.com"` to enable preview mode,
+   * which returns draft content instead of only published content.
+   * @defaultValue "cdn.contentful.com"
+   */
+  host?: string
 }
 
 const qe = new QueryEngine()
@@ -25,31 +33,38 @@ export function createDeliveryClient(options: MockDeliveryClientOptions) {
   const spaceId = options.space ?? 'mock-space'
   const environmentId = options.environment ?? 'master'
   const defaultLocale = options.locale ?? 'en-US'
+  const isPreview = options.host === PREVIEW_HOST
   const { store } = options
 
   function resolveLocale(query?: DeliveryQuery): string {
     return String(query?.['locale'] ?? defaultLocale)
   }
 
-  function getPublishedEntries() {
+  // Delivery: published snapshot only.
+  // Preview: latest draft for all non-archived entities.
+  function getVisibleEntries() {
     return store
       .listEntries(spaceId, environmentId)
-      .filter((s) => s.publishedProps !== undefined)
-      .map((s) => s.publishedProps!)
+      .filter((s) =>
+        isPreview ? s.props.sys.archivedAt === undefined : s.publishedProps !== undefined,
+      )
+      .map((s) => (isPreview ? s.props : s.publishedProps!))
   }
 
-  function getPublishedAssets() {
+  function getVisibleAssets() {
     return store
       .listAssets(spaceId, environmentId)
-      .filter((s) => s.publishedProps !== undefined)
-      .map((s) => s.publishedProps!)
+      .filter((s) =>
+        isPreview ? s.props.sys.archivedAt === undefined : s.publishedProps !== undefined,
+      )
+      .map((s) => (isPreview ? s.props : s.publishedProps!))
   }
 
-  function getPublishedContentTypes() {
+  function getVisibleContentTypes() {
     return store
       .listContentTypes(spaceId, environmentId)
-      .filter((s) => s.publishedProps !== undefined)
-      .map((s) => s.publishedProps!)
+      .filter((s) => (isPreview ? true : s.publishedProps !== undefined))
+      .map((s) => (isPreview ? s.props : s.publishedProps!))
   }
 
   function buildIncludesMap(locale: string, includeDepth: number) {
@@ -57,10 +72,10 @@ export function createDeliveryClient(options: MockDeliveryClientOptions) {
       return { entries: new Map<string, CdaEntry>(), assets: new Map<string, CdaAsset>() }
     const entriesMap = new Map<string, CdaEntry>()
     const assetsMap = new Map<string, CdaAsset>()
-    for (const ep of getPublishedEntries()) {
+    for (const ep of getVisibleEntries()) {
       entriesMap.set(ep.sys.id, toCdaEntry(ep, locale))
     }
-    for (const ap of getPublishedAssets()) {
+    for (const ap of getVisibleAssets()) {
       assetsMap.set(ap.sys.id, toCdaAsset(ap, locale))
     }
     return { entries: entriesMap, assets: assetsMap }
@@ -70,19 +85,20 @@ export function createDeliveryClient(options: MockDeliveryClientOptions) {
     getEntry: async (id: string, query?: DeliveryQuery) => {
       const locale = resolveLocale(query)
       const stored = store.getEntry(spaceId, environmentId, id)
-      if (!stored.publishedProps) {
+      const props = isPreview ? stored.props : stored.publishedProps
+      if (!props || props.sys.archivedAt !== undefined) {
         throw new ContentfulError(404, 'Not Found', 'The resource could not be found.')
       }
       const includeDepth = Number(query?.['include'] ?? 1)
       const { entries, assets } = buildIncludesMap(locale, includeDepth)
-      const cdaEntry = toCdaEntry(stored.publishedProps, locale)
+      const cdaEntry = toCdaEntry(props, locale)
       return resolveLinks(cdaEntry, entries, assets, includeDepth)
     },
 
     getEntries: async (query?: DeliveryQuery) => {
       const locale = resolveLocale(query)
-      const published = getPublishedEntries()
-      const result = qe.filterEntries(published, query ?? {}, locale)
+      const visible = getVisibleEntries()
+      const result = qe.filterEntries(visible, query ?? {}, locale)
       const includeDepth = Number(query?.['include'] ?? 1)
       const { entries, assets } = buildIncludesMap(locale, includeDepth)
 
@@ -114,16 +130,17 @@ export function createDeliveryClient(options: MockDeliveryClientOptions) {
     getAsset: async (id: string, query?: DeliveryQuery) => {
       const locale = resolveLocale(query)
       const stored = store.getAsset(spaceId, environmentId, id)
-      if (!stored.publishedProps) {
+      const props = isPreview ? stored.props : stored.publishedProps
+      if (!props || props.sys.archivedAt !== undefined) {
         throw new ContentfulError(404, 'Not Found', 'The resource could not be found.')
       }
-      return toCdaAsset(stored.publishedProps, locale)
+      return toCdaAsset(props, locale)
     },
 
     getAssets: async (query?: DeliveryQuery) => {
       const locale = resolveLocale(query)
-      const published = getPublishedAssets()
-      const result = qe.filterAssets(published, query ?? {}, locale)
+      const visible = getVisibleAssets()
+      const result = qe.filterAssets(visible, query ?? {}, locale)
       const items = result.items.map((ap) => toCdaAsset(ap, locale))
       return makeCollection(items, result.total, result.skip, result.limit)
     },
@@ -150,14 +167,15 @@ export function createDeliveryClient(options: MockDeliveryClientOptions) {
 
     getContentType: async (id: string) => {
       const stored = store.getContentType(spaceId, environmentId, id)
-      if (!stored.publishedProps) {
+      const props = isPreview ? stored.props : stored.publishedProps
+      if (!props) {
         throw new ContentfulError(404, 'Not Found', 'The resource could not be found.')
       }
-      return toCdaContentType(stored.publishedProps)
+      return toCdaContentType(props)
     },
 
     getContentTypes: async (query?: { query?: string }) => {
-      let contentTypes = getPublishedContentTypes()
+      let contentTypes = getVisibleContentTypes()
       if (query?.query) {
         const q = query.query.toLowerCase()
         contentTypes = contentTypes.filter(
@@ -170,4 +188,16 @@ export function createDeliveryClient(options: MockDeliveryClientOptions) {
   }
 }
 
+/**
+ * Convenience wrapper for preview mode.
+ * Equivalent to `createDeliveryClient({ ...options, host: 'preview.contentful.com' })`.
+ * Returns draft content for all non-archived entries, assets, and content types.
+ */
+export function createPreviewClient(
+  options: Omit<MockDeliveryClientOptions, 'host'>,
+): ReturnType<typeof createDeliveryClient> {
+  return createDeliveryClient({ ...options, host: PREVIEW_HOST })
+}
+
 export type MockDeliveryClient = ReturnType<typeof createDeliveryClient>
+export type MockPreviewClient = ReturnType<typeof createPreviewClient>

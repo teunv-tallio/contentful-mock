@@ -7,10 +7,15 @@ export type {
   MemoryStoreOptions,
 } from './store/types.js'
 export { ContentfulError } from './utils/ContentfulError.js'
-export { createDeliveryClient } from './delivery/createDeliveryClient.js'
+export {
+  createDeliveryClient,
+  createPreviewClient,
+  PREVIEW_HOST,
+} from './delivery/createDeliveryClient.js'
 export type {
   MockDeliveryClientOptions,
   MockDeliveryClient,
+  MockPreviewClient,
 } from './delivery/createDeliveryClient.js'
 export { createPlainClient } from './management/plain/createPlainClient.js'
 export type {

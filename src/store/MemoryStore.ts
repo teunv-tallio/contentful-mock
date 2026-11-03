@@ -31,11 +31,7 @@ export class MemoryStore {
     return { ...props }
   }
 
-  getEntry(
-    spaceId: string,
-    environmentId: string,
-    entryId: string,
-  ): StoredEntry {
+  getEntry(spaceId: string, environmentId: string, entryId: string): StoredEntry {
     const key = makeKey(spaceId, environmentId, entryId)
     const stored = this.entries.get(key)
     if (!stored) {
@@ -312,11 +308,7 @@ export class MemoryStore {
     return { ...props }
   }
 
-  getContentType(
-    spaceId: string,
-    environmentId: string,
-    contentTypeId: string,
-  ): StoredContentType {
+  getContentType(spaceId: string, environmentId: string, contentTypeId: string): StoredContentType {
     const key = makeKey(spaceId, environmentId, contentTypeId)
     const stored = this.contentTypes.get(key)
     if (!stored) {

@@ -45,11 +45,7 @@ function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
 }
 
 // Extract the locale-unwrapped value from a CMA-format localized field
-function getLocalizedValue(
-  fields: StoredEntryFields,
-  fieldId: string,
-  locale: string,
-): unknown {
+function getLocalizedValue(fields: StoredEntryFields, fieldId: string, locale: string): unknown {
   const field = fields[fieldId]
   if (field === undefined) return undefined
   // Try requested locale, then first available
@@ -73,11 +69,7 @@ function parseQueryKey(key: string): { path: string; operator: string } | null {
   return null
 }
 
-function getEntryFieldValue(
-  entry: EntryProps,
-  path: string,
-  locale: string,
-): unknown {
+function getEntryFieldValue(entry: EntryProps, path: string, locale: string): unknown {
   if (path.startsWith('fields.')) {
     const fieldId = path.slice('fields.'.length)
     return getLocalizedValue(entry.fields, fieldId, locale)
@@ -126,9 +118,7 @@ export class QueryEngine {
       const queryValue = String(rawValue)
 
       if (rawKey === 'content_type') {
-        filtered = filtered.filter(
-          (e) => e.sys.contentType.sys.id === queryValue,
-        )
+        filtered = filtered.filter((e) => e.sys.contentType.sys.id === queryValue)
         continue
       }
 

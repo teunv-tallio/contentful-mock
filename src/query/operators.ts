@@ -110,12 +110,7 @@ export function opWithin(fieldValue: unknown, queryValue: string): boolean {
   const maxLat = Math.max(lat1, lat2)
   const minLon = Math.min(lon1, lon2)
   const maxLon = Math.max(lon1, lon2)
-  return (
-    point.lat >= minLat &&
-    point.lat <= maxLat &&
-    point.lon >= minLon &&
-    point.lon <= maxLon
-  )
+  return point.lat >= minLat && point.lat <= maxLat && point.lon >= minLon && point.lon <= maxLon
 }
 
 // uses geolib isPointWithinRadius as cross-check – same logic re-exported for tests

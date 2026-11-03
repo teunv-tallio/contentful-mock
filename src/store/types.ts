@@ -1,7 +1,7 @@
-export interface SysLink {
+export interface SysLink<L extends string = string> {
   sys: {
     type: 'Link'
-    linkType: string
+    linkType: L
     id: string
   }
 }
@@ -12,8 +12,8 @@ export interface BasicSys {
   createdAt: string
   updatedAt: string
   version: number
-  space: SysLink
-  environment: SysLink
+  space: SysLink<'Space'>
+  environment: SysLink<'Environment'>
   publishedVersion?: number
   publishedAt?: string
   firstPublishedAt?: string
@@ -23,7 +23,7 @@ export interface BasicSys {
 
 export interface EntrySys extends BasicSys {
   type: 'Entry'
-  contentType: SysLink
+  contentType: SysLink<'ContentType'>
 }
 
 export interface AssetSys extends BasicSys {

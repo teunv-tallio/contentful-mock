@@ -14,11 +14,15 @@ The package is published to npm as `@tallio/contentful-mock`. Only the `dist/` f
    npm run build
    ```
 
-3. Bump the version (updates `package.json`, commits and tags). Follow [semver](https://semver.org/):
+3. Bump the version, update `CHANGELOG.md` from the Conventional Commit history, commit and tag. The bump is inferred from commits (`fix:` → patch, `feat:` → minor, `!`/`BREAKING CHANGE` → major):
 
    ```bash
-   npm version patch   # or minor / major
+   npm run release:dry                 # preview the version and changelog entry
+   npm run release                     # apply it
+   npm run release -- --release-as minor   # or force patch / minor / major
    ```
+
+   To only regenerate the changelog without bumping or tagging, run `npm run changelog`.
 
 4. Inspect what will be published:
 

@@ -19,7 +19,7 @@ module.exports = {
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
   },
-  ignorePatterns: ['dist/', 'node_modules/', 'examples/', 'vitest.config.ts', '.eslintrc.cjs'],
+  ignorePatterns: ['dist/', 'node_modules/', 'examples/', 'vitest.config.ts', '.eslintrc.cjs', 'commitlint.config.js'],
   overrides: [
     {
       files: ['tests/**/*.ts'],

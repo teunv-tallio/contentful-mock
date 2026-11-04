@@ -36,7 +36,7 @@ To run a single test file: `npx vitest run tests/delivery/entries.test.ts`.
 
 ## Commits and pull requests
 
-- Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `chore:`, ...), matching the existing history.
+- Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `chore:`, ...), matching the existing history. The changelog is generated from these messages, so `feat:` and `fix:` entries appear in `CHANGELOG.md` (see [DEPLOYING.md](DEPLOYING.md)). Messages are checked by [commitlint](https://commitlint.js.org/) in a Husky `commit-msg` hook (installed automatically by `npm install`), so non-conforming commits are rejected. You can check manually with `echo "feat: x" | npx commitlint`.
 - Keep pull requests focused, and describe what changed and why.
 - All tests and lint checks must pass.
 

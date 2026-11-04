@@ -27,10 +27,9 @@
     "test:watch": "vitest",
     "lint": "eslint src tests --ext .ts",
     "format": "prettier --write src tests",
-    "changelog": "commit-and-tag-version --skip.commit --skip.tag --skip.bump",
-    "release": "commit-and-tag-version",
-    "release:dry": "commit-and-tag-version --dry-run",
-    "prepare": "husky"
+    "release": "semantic-release",
+    "prepare": "husky",
+    "release:dry": "semantic-release --dry-run --no-ci"
   },
   "peerDependencies": {
     "contentful": ">=11",
@@ -54,11 +53,12 @@
   "devDependencies": {
     "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.2.4",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
     "@types/node": "^26.6.6",
     "@types/seedrandom": "^3.0.8",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
-    "commit-and-tag-version": "^13.3.0",
     "contentful": "^11.12.10",
     "contentful-management": "^12.20.0",
     "eslint": "^8.57.0",
@@ -66,6 +66,7 @@
     "eslint-plugin-prettier": "^5.0.0",
     "husky": "^9.1.7",
     "prettier": "^3.0.0",
+    "semantic-release": "^25.0.9",
     "tsup": "^8.0.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"

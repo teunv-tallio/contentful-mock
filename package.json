@@ -1,6 +1,9 @@
 {
   "name": "@tallio-be/contentful-mock",
   "version": "1.0.0",
+  "repository": {
+    "url": "https://github.com/teunv-tallio/contentful-mock"
+  },
   "description": "In-memory mock for Contentful Delivery and Management API clients",
   "author": "Teun Verhaert",
   "license": "MIT",

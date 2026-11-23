@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/teunv-tallio/contentful-mock/compare/v1.0.0...v1.0.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* add repository field to package.json ([bd8e7f9](https://github.com/teunv-tallio/contentful-mock/commit/bd8e7f944aeac1a20e813bcde89dfaa387be75e9))
+
 # 1.0.0 (2026-11-04)
 
 

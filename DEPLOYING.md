@@ -16,7 +16,7 @@ Preview what the next release would be locally with `npm run release:dry`.
 ## One-time setup
 
 - Add an npm token with publish rights as the repository secret `NPM_TOKEN`.
-- Branch protection on `master`: require a pull request and the status checks `Lint, test, build (Node 18/20/22)` and `Commit messages` (from `ci.yml`) before merging. If you also block direct pushes, allow `github-actions[bot]` (or a bypass role) so the release can push its version commit.
+- Branch protection on `master`: require a pull request and the status checks `Lint, test, build (Node 22/24/26)` and `Commit messages` (from `ci.yml`) before merging. If you also block direct pushes, allow `github-actions[bot]` (or a bypass role) so the release can push its version commit.
 
 ## Pull request checks
 

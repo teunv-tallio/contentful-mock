@@ -27,6 +27,11 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - name: ESM consumer compiles and runs
+        working-directory: examples/node-esm
+        run: |
+          npm ci
+          npm test
 
   commitlint:
     name: Commit messages

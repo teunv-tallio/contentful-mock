@@ -1,4 +1,6 @@
-import { applyPatch, type Operation } from 'fast-json-patch'
+// fast-json-patch is CommonJS without an `exports` map, so Node's ESM loader can't
+// detect its named exports. Use the default import to work in both ESM and CJS.
+import jsonpatch, { type Operation } from 'fast-json-patch'
 import type { MemoryStore } from '../../store/MemoryStore.js'
 import type {
   EntryProps,
@@ -134,7 +136,8 @@ function makeEntryNamespace(store: MemoryStore) {
 
     patch: async (params: EntryParams, ops: Operation[]): Promise<EntryProps> => {
       const current = store.getEntry(params.spaceId, params.environmentId, params.entryId).props
-      const patched = applyPatch(JSON.parse(JSON.stringify(current)), ops).newDocument as EntryProps
+      const patched = jsonpatch.applyPatch(JSON.parse(JSON.stringify(current)), ops)
+        .newDocument as EntryProps
       const updated = bumpVersion(patched)
       return store.updateEntry(params.spaceId, params.environmentId, updated)
     },

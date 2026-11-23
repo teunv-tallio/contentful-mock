@@ -1,0 +1,16 @@
+{
+  "name": "contentful-mock-node-esm-example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "npm run build && npm start"
+  },
+  "devDependencies": {
+    "@tallio-be/contentful-mock": "file:../..",
+    "@types/node": "^26.6.6",
+    "typescript": "^5.5.0"
+  }
+}

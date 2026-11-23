@@ -1,13 +1,31 @@
 import Fuse from 'fuse.js'
 import { isPointWithinRadius, getDistance } from 'geolib'
 
-export function opEq(fieldValue: unknown, queryValue: string): boolean {
+function scalarEq(fieldValue: unknown, queryValue: string): boolean {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return String(fieldValue) === queryValue || (fieldValue as any) == queryValue
 }
 
+// On arrays, equality matches when at least one item is equal.
+export function opEq(fieldValue: unknown, queryValue: string): boolean {
+  if (Array.isArray(fieldValue)) return fieldValue.some((v) => scalarEq(v, queryValue))
+  return scalarEq(fieldValue, queryValue)
+}
+
+// On arrays, inequality excludes the document when at least one item is equal.
 export function opNe(fieldValue: unknown, queryValue: string): boolean {
   return !opEq(fieldValue, queryValue)
+}
+
+// Array field must contain every one of the comma-separated values.
+export function opAll(fieldValue: unknown, queryValue: string): boolean {
+  const values = queryValue.split(',')
+  const items = Array.isArray(fieldValue)
+    ? fieldValue.map(String)
+    : fieldValue === undefined || fieldValue === null
+      ? []
+      : [String(fieldValue)]
+  return values.every((v) => items.includes(v))
 }
 
 export function opLt(fieldValue: unknown, queryValue: string): boolean {
@@ -40,7 +58,10 @@ export function opGte(fieldValue: unknown, queryValue: string): boolean {
 }
 
 export function opExists(fieldValue: unknown, queryValue: string): boolean {
-  const exists = fieldValue !== undefined && fieldValue !== null
+  const exists =
+    fieldValue !== undefined &&
+    fieldValue !== null &&
+    !(Array.isArray(fieldValue) && fieldValue.length === 0)
   return queryValue === 'true' ? exists : !exists
 }
 

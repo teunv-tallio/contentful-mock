@@ -2,6 +2,7 @@ import type { EntryProps, AssetProps, StoredEntryFields } from '../store/types.j
 import {
   opEq,
   opNe,
+  opAll,
   opLt,
   opLte,
   opGt,
@@ -13,6 +14,7 @@ import {
   opNear,
   opWithin,
 } from './operators.js'
+import { parseSearch, isEmptySearch, searchableValues, scoreSearch } from './fullText.js'
 
 export type DeliveryQuery = Record<string, string | number | boolean | undefined>
 
@@ -21,6 +23,7 @@ type OperatorFn = (fieldValue: unknown, queryValue: string) => boolean
 const OPERATORS: Record<string, OperatorFn> = {
   eq: opEq,
   ne: opNe,
+  all: opAll,
   lt: opLt,
   lte: opLte,
   gt: opGt,
@@ -33,11 +36,20 @@ const OPERATORS: Record<string, OperatorFn> = {
   within: opWithin,
 }
 
-// Get a nested value from an object using dot-path notation
-function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+// Get a nested value from an object using dot-path notation. Arrays along the
+// path are mapped over, so `metadata.tags.sys.id` yields the list of tag IDs.
+function getNestedValue(obj: unknown, path: string): unknown {
+  if (path === '') return obj
   const parts = path.split('.')
   let current: unknown = obj
   for (const part of parts) {
+    if (Array.isArray(current)) {
+      current = current
+        .map((item) => getNestedValue(item, part))
+        .flat()
+        .filter((v) => v !== undefined)
+      continue
+    }
     if (current === null || current === undefined || typeof current !== 'object') return undefined
     current = (current as Record<string, unknown>)[part]
   }
@@ -63,34 +75,35 @@ function parseQueryKey(key: string): { path: string; operator: string } | null {
     return { path: bracketMatch[1], operator: bracketMatch[2] }
   }
   // Plain key — treat as equality
-  if (key.startsWith('fields.') || key.startsWith('sys.') || key === 'content_type') {
+  if (
+    key.startsWith('fields.') ||
+    key.startsWith('sys.') ||
+    key.startsWith('metadata.') ||
+    key === 'content_type'
+  ) {
     return { path: key, operator: 'eq' }
   }
   return null
 }
 
-function getEntryFieldValue(entry: EntryProps, path: string, locale: string): unknown {
-  if (path.startsWith('fields.')) {
-    const fieldId = path.slice('fields.'.length)
-    return getLocalizedValue(entry.fields, fieldId, locale)
-  }
-  if (path.startsWith('sys.')) {
-    const sysPath = path.slice('sys.'.length)
-    return getNestedValue(entry.sys as unknown as Record<string, unknown>, sysPath)
-  }
-  return undefined
+interface QueryableDoc {
+  sys: object
+  fields: object
+  metadata?: object
 }
 
-function getAssetFieldValue(asset: AssetProps, path: string, locale: string): unknown {
+// Resolve a query path against a CMA-format document:
+// - `fields.<id>[.<nested>]` → locale-unwrapped field value, then nested path
+// - `sys.*` / `metadata.*`    → nested value on sys / metadata
+function getDocValue(doc: QueryableDoc, path: string, locale: string): unknown {
   if (path.startsWith('fields.')) {
-    const fieldId = path.slice('fields.'.length)
-    const field = (asset.fields as unknown as StoredEntryFields)[fieldId]
-    if (!field) return undefined
-    return locale in field ? field[locale] : Object.values(field)[0]
+    const [fieldId, ...rest] = path.slice('fields.'.length).split('.')
+    const value = getLocalizedValue(doc.fields as StoredEntryFields, fieldId, locale)
+    return rest.length ? getNestedValue(value, rest.join('.')) : value
   }
-  if (path.startsWith('sys.')) {
-    const sysPath = path.slice('sys.'.length)
-    return getNestedValue(asset.sys as unknown as Record<string, unknown>, sysPath)
+  if (path.startsWith('sys.')) return getNestedValue(doc.sys, path.slice('sys.'.length))
+  if (path === 'metadata' || path.startsWith('metadata.')) {
+    return getNestedValue(doc.metadata, path.slice('metadata'.length).replace(/^\./, ''))
   }
   return undefined
 }
@@ -102,23 +115,43 @@ export interface QueryResult<T> {
   limit: number
 }
 
+const NON_FILTER_PARAMS = ['limit', 'skip', 'order', 'select', 'include', 'locale', 'query']
+
 export class QueryEngine {
   filterEntries(
     entries: EntryProps[],
     query: DeliveryQuery,
     locale: string,
   ): QueryResult<EntryProps> {
-    let filtered = [...entries]
+    return this.run(entries, query, locale, true)
+  }
 
-    // Apply filters
+  filterAssets(
+    assets: AssetProps[],
+    query: DeliveryQuery,
+    locale: string,
+  ): QueryResult<AssetProps> {
+    return this.run(assets, query, locale, false)
+  }
+
+  private run<T extends QueryableDoc>(
+    docs: T[],
+    query: DeliveryQuery,
+    locale: string,
+    isEntry: boolean,
+  ): QueryResult<T> {
+    let filtered = [...docs]
+
     for (const [rawKey, rawValue] of Object.entries(query)) {
-      if (['limit', 'skip', 'order', 'select', 'include', 'locale'].includes(rawKey)) continue
+      if (NON_FILTER_PARAMS.includes(rawKey)) continue
       if (rawValue === undefined) continue
 
       const queryValue = String(rawValue)
 
-      if (rawKey === 'content_type') {
-        filtered = filtered.filter((e) => e.sys.contentType.sys.id === queryValue)
+      if (isEntry && rawKey === 'content_type') {
+        filtered = filtered.filter(
+          (e) => (e as unknown as EntryProps).sys.contentType.sys.id === queryValue,
+        )
         continue
       }
 
@@ -129,73 +162,37 @@ export class QueryEngine {
       const operatorFn = OPERATORS[operator]
       if (!operatorFn) continue
 
-      filtered = filtered.filter((entry) => {
-        const value = getEntryFieldValue(entry, path, locale)
-        return operatorFn(value, queryValue)
-      })
+      filtered = filtered.filter((doc) => operatorFn(getDocValue(doc, path, locale), queryValue))
     }
 
-    // Sort
-    if (query['order']) {
-      const orderStr = String(query['order'])
-      const orderFields = orderStr.split(',').map((f) => f.trim())
-      filtered.sort((a, b) => {
-        for (const field of orderFields) {
-          const desc = field.startsWith('-')
-          const path = desc ? field.slice(1) : field
-          const aVal = getEntryFieldValue(a, path, locale)
-          const bVal = getEntryFieldValue(b, path, locale)
-          const cmp = compareValues(aVal, bVal)
-          if (cmp !== 0) return desc ? -cmp : cmp
+    // Global full-text search (`query=`), scored for `order=relevance`
+    const scores = new Map<T, number>()
+    if (query['query'] !== undefined) {
+      const search = parseSearch(String(query['query']))
+      if (!isEmptySearch(search)) {
+        for (const doc of filtered) {
+          scores.set(
+            doc,
+            scoreSearch(searchableValues(doc.fields as Record<string, unknown>), search),
+          )
         }
-        return 0
-      })
-    }
-
-    const total = filtered.length
-    const skip = Number(query['skip'] ?? 0)
-    const limit = Math.min(Number(query['limit'] ?? 100), 1000)
-
-    const items = filtered.slice(skip, skip + limit)
-
-    return { items, total, skip, limit }
-  }
-
-  filterAssets(
-    assets: AssetProps[],
-    query: DeliveryQuery,
-    locale: string,
-  ): QueryResult<AssetProps> {
-    let filtered = [...assets]
-
-    for (const [rawKey, rawValue] of Object.entries(query)) {
-      if (['limit', 'skip', 'order', 'select', 'include', 'locale'].includes(rawKey)) continue
-      if (rawValue === undefined) continue
-
-      const queryValue = String(rawValue)
-      const parsed = parseQueryKey(rawKey)
-      if (!parsed) continue
-
-      const { path, operator } = parsed
-      const operatorFn = OPERATORS[operator]
-      if (!operatorFn) continue
-
-      filtered = filtered.filter((asset) => {
-        const value = getAssetFieldValue(asset, path, locale)
-        return operatorFn(value, queryValue)
-      })
+        filtered = filtered.filter((doc) => (scores.get(doc) ?? 0) > 0)
+      }
     }
 
     if (query['order']) {
-      const orderStr = String(query['order'])
-      const orderFields = orderStr.split(',').map((f) => f.trim())
+      const orderFields = String(query['order'])
+        .split(',')
+        .map((f) => f.trim())
       filtered.sort((a, b) => {
         for (const field of orderFields) {
           const desc = field.startsWith('-')
           const path = desc ? field.slice(1) : field
-          const aVal = getAssetFieldValue(a, path, locale)
-          const bVal = getAssetFieldValue(b, path, locale)
-          const cmp = compareValues(aVal, bVal)
+          // `relevance` (CMA only) sorts best match first; `-relevance` reverses it
+          const cmp =
+            path === 'relevance'
+              ? (scores.get(b) ?? 0) - (scores.get(a) ?? 0)
+              : compareValues(getDocValue(a, path, locale), getDocValue(b, path, locale))
           if (cmp !== 0) return desc ? -cmp : cmp
         }
         return 0

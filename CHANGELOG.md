@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/teunv-tallio/contentful-mock/compare/v1.0.1...v1.0.2) (2026-11-23)
+
+
+### Bug Fixes
+
+* use default import for fast-json-patch so the ESM build loads in Node ([79baeb9](https://github.com/teunv-tallio/contentful-mock/commit/79baeb97ca9bd7afc48fc300a8561af67d947ea5)), closes [#1](https://github.com/teunv-tallio/contentful-mock/issues/1)
+
 ## [1.0.1](https://github.com/teunv-tallio/contentful-mock/compare/v1.0.0...v1.0.1) (2026-11-04)
 
 

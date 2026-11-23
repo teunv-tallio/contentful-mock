@@ -13,6 +13,7 @@ import { ContentfulError } from '../../utils/ContentfulError.js'
 import { makeCollection, type Collection } from '../../utils/collection.js'
 import { makeEntrySys, makeAssetSys, makeContentTypeSys, bumpVersion } from '../../utils/sys.js'
 import { QueryEngine } from '../../query/QueryEngine.js'
+import { selectEntries, selectAssets } from '../select.js'
 
 export interface ManagementParams {
   spaceId: string
@@ -45,7 +46,8 @@ function makeEntryNamespace(store: MemoryStore) {
       const all = store.listEntries(params.spaceId, params.environmentId).map((s) => s.props)
       const query = (params.query ?? {}) as Record<string, string>
       const result = qe.filterEntries(all, query, 'en-US')
-      return makeCollection(result.items, result.total, result.skip, result.limit)
+      const items = selectEntries(store, params.spaceId, params.environmentId, result.items, query)
+      return makeCollection(items, result.total, result.skip, result.limit)
     },
 
     getPublished: async (
@@ -57,7 +59,8 @@ function makeEntryNamespace(store: MemoryStore) {
         .map((s) => s.publishedProps!)
       const query = (params.query ?? {}) as Record<string, string>
       const result = qe.filterEntries(all, query, 'en-US')
-      return makeCollection(result.items, result.total, result.skip, result.limit)
+      const items = selectEntries(store, params.spaceId, params.environmentId, result.items, query)
+      return makeCollection(items, result.total, result.skip, result.limit)
     },
 
     getManyWithCursor: async (
@@ -232,7 +235,12 @@ function makeAssetNamespace(store: MemoryStore) {
       const all = store.listAssets(params.spaceId, params.environmentId).map((s) => s.props)
       const query = (params.query ?? {}) as Record<string, string>
       const result = qe.filterAssets(all, query, 'en-US')
-      return makeCollection(result.items, result.total, result.skip, result.limit)
+      return makeCollection(
+        selectAssets(result.items, query),
+        result.total,
+        result.skip,
+        result.limit,
+      )
     },
 
     getManyWithCursor: async (
@@ -261,7 +269,12 @@ function makeAssetNamespace(store: MemoryStore) {
         .map((s) => s.publishedProps!)
       const query = (params.query ?? {}) as Record<string, string>
       const result = qe.filterAssets(all, query, 'en-US')
-      return makeCollection(result.items, result.total, result.skip, result.limit)
+      return makeCollection(
+        selectAssets(result.items, query),
+        result.total,
+        result.skip,
+        result.limit,
+      )
     },
 
     getPublishedWithCursor: async (

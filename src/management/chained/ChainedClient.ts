@@ -8,6 +8,7 @@ import type {
 import { makeEntrySys, makeAssetSys, makeContentTypeSys, bumpVersion } from '../../utils/sys.js'
 import { makeCollection } from '../../utils/collection.js'
 import { QueryEngine } from '../../query/QueryEngine.js'
+import { selectEntries, selectAssets } from '../select.js'
 
 const qe = new QueryEngine()
 
@@ -192,7 +193,9 @@ function makeEnvironmentEntity(store: MemoryStore, spaceId: string, environmentI
     getEntries: async (query?: Record<string, unknown>) => {
       const all = store.listEntries(spaceId, environmentId).map((s) => s.props)
       const result = qe.filterEntries(all, (query ?? {}) as Record<string, string>, 'en-US')
-      const items = result.items.map((p) => makeEntryEntity(store, spaceId, environmentId, p))
+      const items = selectEntries(store, spaceId, environmentId, result.items, query ?? {}).map(
+        (p) => makeEntryEntity(store, spaceId, environmentId, p),
+      )
       return makeCollection(items, result.total, result.skip, result.limit)
     },
 
@@ -224,7 +227,9 @@ function makeEnvironmentEntity(store: MemoryStore, spaceId: string, environmentI
     getAssets: async (query?: Record<string, unknown>) => {
       const all = store.listAssets(spaceId, environmentId).map((s) => s.props)
       const result = qe.filterAssets(all, (query ?? {}) as Record<string, string>, 'en-US')
-      const items = result.items.map((p) => makeAssetEntity(store, spaceId, environmentId, p))
+      const items = selectAssets(result.items, query ?? {}).map((p) =>
+        makeAssetEntity(store, spaceId, environmentId, p),
+      )
       return makeCollection(items, result.total, result.skip, result.limit)
     },
 

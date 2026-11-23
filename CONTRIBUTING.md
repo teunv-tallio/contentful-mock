@@ -10,7 +10,7 @@ cd contentful-mock
 npm install
 ```
 
-Requires Node.js 18 or newer.
+Requires Node.js 22 or newer (see [Supported Node.js versions](README.md#supported-nodejs-versions)).
 
 ## Workflow
 

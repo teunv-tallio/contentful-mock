@@ -24,6 +24,18 @@ npm install contentful                 # Delivery API
 npm install contentful-management      # Management API
 ```
 
+## Supported Node.js versions
+
+This package supports the Node.js release lines that are still maintained upstream, per the [official Node.js release schedule](https://github.com/nodejs/Release#release-schedule). CI runs lint, tests and the build on each of them.
+
+| Node.js | Status (Nov 2026) | End of life |
+| ------- | ----------------- | ----------- |
+| 26      | Active LTS        | 2029-04-30  |
+| 24      | Maintenance LTS   | 2028-04-30  |
+| 22      | Maintenance LTS   | 2027-04-30  |
+
+Node.js 20 and older are end-of-life and are not supported (`engines.node` is `>=22`). When a release line reaches end-of-life it is dropped from the CI matrix and from `engines`. New LTS lines are added once they are promoted to LTS.
+
 ## Quick start
 
 ### Delivery client

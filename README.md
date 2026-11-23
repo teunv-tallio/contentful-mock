@@ -292,8 +292,8 @@ The delivery client and management `getMany` methods accept Contentful-style que
 
 | Operator | Example | Description |
 |----------|---------|-------------|
-| _(none)_ | `'fields.title': 'Hello'` | Exact equality |
-| `[ne]` | `'fields.title[ne]': 'Hello'` | Not equal |
+| _(none)_ | `'fields.title': 'Hello'` | Exact equality (on arrays: at least one item equal) |
+| `[ne]` | `'fields.title[ne]': 'Hello'` | Not equal (on arrays: no item equal) |
 | `[lt]` | `'fields.count[lt]': '10'` | Less than |
 | `[lte]` | `'fields.count[lte]': '10'` | Less than or equal |
 | `[gt]` | `'fields.count[gt]': '10'` | Greater than |
@@ -301,6 +301,7 @@ The delivery client and management `getMany` methods accept Contentful-style que
 | `[exists]` | `'fields.tags[exists]': 'true'` | Field exists (or not, with `false`) |
 | `[in]` | `'fields.tags[in]': 'a,b,c'` | Value in comma-separated list |
 | `[nin]` | `'fields.tags[nin]': 'a,b'` | Value NOT in list |
+| `[all]` | `'fields.tags[all]': 'a,b'` | Array contains all values |
 | `[match]` | `'fields.title[match]': 'hello'` | Fuzzy full-text search (Fuse.js) |
 | `[near]` | `'fields.location[near]': '40.7,-74.0,10'` | Within `N` km of `lat,lon` |
 | `[within]` | `'fields.location[within]': '0,0,60,60'` | Within bounding box `lat1,lon1,lat2,lon2` |
@@ -312,8 +313,26 @@ Pagination:
 | `limit` | Max results (default 100, max 1000) |
 | `skip` | Offset (default 0) |
 | `order` | Comma-separated field paths; prefix `-` for descending (`-sys.createdAt`) |
-| `select` | Comma-separated paths to project (not yet applied in this mock) |
-| `locale` | Locale to use for field values |
+| `select` | Comma-separated paths to project (management client only; see below) |
+| `locale` | Locale to use for field values (delivery client only) |
+| `query` | Full-text search across all text fields and locales (see below) |
+
+Filters work on `sys.*`, `fields.*` (including nested paths such as `fields.author.sys.id`) and `metadata.*`, so entries and assets can be queried by tag:
+
+```ts
+await client.entry.getMany({ ...params, query: { 'metadata.tags.sys.id[in]': 'featured,sale' } })
+await client.entry.getMany({ ...params, query: { 'metadata.tags.sys.id[all]': 'featured,sale' } })
+await client.entry.getMany({ ...params, query: { 'metadata.tags[exists]': 'false' } })
+```
+
+**Full-text search (`query`)** is case-insensitive and left-anchored (`cat` matches `catastrophic`). All terms must match, in any field or locale. Terms shorter than 2 characters are ignored, and HTML tags are stripped. Wrap terms in double quotes (`'"my cat is blue"'`) to require them in that order within one field.
+
+### Management API (CMA) specifics
+
+- `include` and `locale` are not supported by the CMA and are ignored. Links stay unresolved and fields stay locale-keyed.
+- `order: 'relevance'` sorts `query` results by keyword relevance, best match first (`-relevance` reverses). It can be combined with other order fields, e.g. `'relevance,sys.id'`.
+- `select` projects entries and assets, e.g. `select: 'sys.id,fields.title'`. Entry field selectors require `content_type`. Paths deeper than two levels and more than 100 properties are rejected with a `400`.
+- `select: 'fields._displayField'` resolves each entry's content-type display field and does not require `content_type`. Entries whose content type has no display field, or whose display field has no value, are returned without `fields`. When the bare `fields` selector is also present, the token is a no-op.
 
 ## Link resolution (`include`)
 
